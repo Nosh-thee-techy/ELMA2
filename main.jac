@@ -10,8 +10,8 @@ def risk_class(risk: int) -> str { return "critical" if risk >= 70 else "high" i
 def person_class(needs_visit: bool, acknowledged: bool) -> str { return "visit" if needs_visit else "ack" if acknowledged else "pending"; }
 def:pub app -> JsxElement {
     has state: DashboardState = DashboardState(), tab: str = "Responder Command", name: str = "Kip", report_text: str = "Water rising at the bridge", report_area: str = "Mukuru", notice: str = "", loading: bool = True, error: bool = False, sms_text: str = "", sms_log: list[str] = [];
-    async can with entry { try { state = await fetch_state(); loading = False; error = False; } except Exception { loading = False; error = True; } }
-    async def retry { loading = True; try { state = await fetch_state(); error = False; } except Exception { error = True; } loading = False; }
+    async can with entry { try { state = await fetch_state(); loading = False; error = False; } except Exception { try { state = await run_rainfall(0); loading = False; error = False; } except Exception { loading = False; error = True; } } }
+    async def retry { loading = True; try { state = await fetch_state(); error = False; } except Exception { try { state = await run_rainfall(0); error = False; } except Exception { error = True; } } loading = False; }
     async def rain_changed(e: ChangeEvent) { try { state = await run_rainfall(int(e.target.value)); notice = "Warnings sent."; error = False; } except Exception { error = True; notice = "Could not update rainfall."; } }
     async def safe_now { try { state = await acknowledge(name); notice = "Marked safe."; error = False; } except Exception { error = True; } }
     async def fast_forward_now { try { state = await fast_forward(0); notice = "Fast-forward complete."; error = False; } except Exception { error = True; } }

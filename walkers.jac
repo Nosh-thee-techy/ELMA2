@@ -1,6 +1,5 @@
 
 import from graph { DashboardState, AreaView, PersonView, ReportView, TrustView, seed_sample_data, control, area_for, area_by_name, person_by_name, template_warning, route_for, Area, River, Person, Report, FlowsTo, Feeds, Connects, LocatedIn, ReportedAt, Trusts, personalised_warning, verification_reason, resource_brief }
-import from http { HTTPMethod }
 
 walker RiskPropagator {
     has rain: int = 0;
@@ -117,5 +116,4 @@ def snapshot -> DashboardState {
     try { brief=resource_brief(red,visits,verified); } except Exception { brief="Stage shelter, medic and boat resources near the highest-risk corridor; arrange "+str(visits)+" welfare visit(s)."; }
     return DashboardState(rain=c.rain,minute=c.minute,areas=areas,people=people,reports=reports,trusts=trusts,resource_brief=brief,escalations=c.escalations,first_ack=c.first_ack,verified_at=c.verified_at,warnings_at=c.warnings_at);
 }
-@restspec(method=HTTPMethod.POST, path="/get_state")
 def:pub get_state(tick: int) -> DashboardState { return snapshot(); }
