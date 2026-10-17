@@ -1,6 +1,8 @@
 
 import from graph { DashboardState, PersonView, AreaView }
 import from walkers { run_rainfall, acknowledge, fast_forward, submit_report, get_state, confirm_visit, reset_demo, ussd }
+
+async def fetch_state() -> DashboardState { return await get_state(0); }
 import "./public/styles.css";
 
 def risk_level(risk: int) -> str { return "Critical" if risk >= 70 else "High" if risk >= 45 else "Watch" if risk >= 25 else "Safe"; }
@@ -8,8 +10,8 @@ def risk_class(risk: int) -> str { return "critical" if risk >= 70 else "high" i
 def person_class(needs_visit: bool, acknowledged: bool) -> str { return "visit" if needs_visit else "ack" if acknowledged else "pending"; }
 def:pub app -> JsxElement {
     has state: DashboardState = DashboardState(), tab: str = "Responder Command", name: str = "Kip", report_text: str = "Water rising at the bridge", report_area: str = "Mukuru", notice: str = "", loading: bool = True, error: bool = False, sms_text: str = "", sms_log: list[str] = [];
-    async can with entry { try { state = await get_state(0); loading = False; error = False; } except Exception { loading = False; error = True; } }
-    async def retry { loading = True; try { state = await get_state(0); error = False; } except Exception { error = True; } loading = False; }
+    async can with entry { try { state = await fetch_state(); loading = False; error = False; } except Exception { loading = False; error = True; } }
+    async def retry { loading = True; try { state = await fetch_state(); error = False; } except Exception { error = True; } loading = False; }
     async def rain_changed(e: ChangeEvent) { try { state = await run_rainfall(int(e.target.value)); notice = "Warnings sent."; error = False; } except Exception { error = True; notice = "Could not update rainfall."; } }
     async def safe_now { try { state = await acknowledge(name); notice = "Marked safe."; error = False; } except Exception { error = True; } }
     async def fast_forward_now { try { state = await fast_forward(0); notice = "Fast-forward complete."; error = False; } except Exception { error = True; } }
@@ -17,7 +19,7 @@ def:pub app -> JsxElement {
     async def send_report { try { state = await submit_report(name, report_area, report_text); notice = "Report received."; error = False; } except Exception { error = True; notice = "Could not submit report."; } }
     async def confirm(name_to_confirm: str) { try { state = await confirm_visit(name_to_confirm); notice = "Visit confirmed."; error = False; } except Exception { error = True; } }
     async def relay_again { try { state = await run_rainfall(state.rain); notice = "Warnings sent."; error = False; } except Exception { error = True; } }
-    async def send_sms(command: str) { try { reply = await ussd(command); sms_log = sms_log + ["OUT: " + command, "IN: " + reply]; state = await get_state(0); error = False; } except Exception { error = True; } }
+    async def send_sms(command: str) { try { reply = await ussd(command); sms_log = sms_log + ["OUT: " + command, "IN: " + reply]; state = await fetch_state(); error = False; } except Exception { error = True; } }
     people_warned = len([p for p in state.people if p.warning]); acknowledged = len([p for p in state.people if p.acknowledged]); critical_count = len([a for a in state.areas if a.risk >= 70]); pending_visits = len([p for p in state.people if p.needs_visit]);
     people_found = [p for p in state.people if p.name == name]; resident = people_found[0] if people_found else PersonView(); area_found = [a for a in state.areas if a.name == resident.area]; resident_area = area_found[0] if area_found else AreaView();
     return <main className="shell">

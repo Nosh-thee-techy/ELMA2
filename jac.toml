@@ -1,3 +1,4 @@
+[project]
 name = "wimbi"
 version = "0.1.0"
 description = "Agentic flood warning demo for Nairobi, built in Jac"

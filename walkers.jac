@@ -1,5 +1,6 @@
 
 import from graph { DashboardState, AreaView, PersonView, ReportView, TrustView, seed_sample_data, control, area_for, area_by_name, person_by_name, template_warning, route_for, Area, River, Person, Report, FlowsTo, Feeds, Connects, LocatedIn, ReportedAt, Trusts, personalised_warning, verification_reason, resource_brief }
+import from http { HTTPMethod }
 
 walker RiskPropagator {
     has rain: int = 0;
@@ -79,7 +80,7 @@ def:pub acknowledge(name: str) -> DashboardState {
     if p { c.minute=c.minute+2; p.acknowledged=True; p.needs_visit=False; p.last_relay="Acknowledged safe"; if c.first_ack<0 and c.warnings_at>=0 { c.first_ack=c.minute; } }
     return snapshot();
 }
-def:pub fast_forward(tick: int = 0) -> DashboardState { seed_sample_data(); c=control(); c.minute=c.minute+10; root spawn SilenceEscalator(after_minutes=0); return snapshot(); }
+def:pub fast_forward(tick: int) -> DashboardState { seed_sample_data(); c=control(); c.minute=c.minute+10; root spawn SilenceEscalator(after_minutes=0); return snapshot(); }
 def:pub submit_report(author: str, area_name: str, text: str) -> DashboardState {
     seed_sample_data(); c=control(); c.minute=c.minute+2; area=area_by_name(area_name);
     if area and text.strip() { r=Report(text=text,author=author,minute=c.minute); root ++> r; r +>:ReportedAt():+> area; root spawn ReportVerifier(target=r); }
@@ -90,7 +91,7 @@ def:pub confirm_visit(name: str) -> DashboardState {
     if p { p.needs_visit=False; p.acknowledged=True; p.last_relay="Visit confirmed by "+name; }
     return snapshot();
 }
-def:pub reset_demo(tick: int = 0) -> DashboardState {
+def:pub reset_demo(tick: int) -> DashboardState {
     seed_sample_data(); c=control(); c.rain=0; c.minute=0; c.escalations=0; c.first_ack=-1; c.verified_at=-1; c.warnings_at=-1;
     for p in [root-->[?:Person]] { p.warning=""; p.acknowledged=False; p.needs_visit=False; p.last_relay=""; }
     for a in [root-->[?:Area]] { a.risk=8; a.eta=180; a.trend="watch"; a.boost=0; for road in [a->:Connects:->[?:Road]] { road.status="open"; } }
@@ -116,4 +117,5 @@ def snapshot -> DashboardState {
     try { brief=resource_brief(red,visits,verified); } except Exception { brief="Stage shelter, medic and boat resources near the highest-risk corridor; arrange "+str(visits)+" welfare visit(s)."; }
     return DashboardState(rain=c.rain,minute=c.minute,areas=areas,people=people,reports=reports,trusts=trusts,resource_brief=brief,escalations=c.escalations,first_ack=c.first_ack,verified_at=c.verified_at,warnings_at=c.warnings_at);
 }
-def:pub get_state(tick: int = 0) -> DashboardState { return snapshot(); }
+@restspec(method=HTTPMethod.POST, path="/get_state")
+def:pub get_state(tick: int) -> DashboardState { return snapshot(); }
