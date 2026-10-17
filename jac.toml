@@ -1,4 +1,3 @@
-[project]
 name = "wimbi"
 version = "0.1.0"
 description = "Agentic flood warning demo for Nairobi, built in Jac"
@@ -15,15 +14,14 @@ typescript = "^5.3.3"
 "@types/react" = "^19.2.0"
 "@types/react-dom" = "^19.2.0"
 
-[serve]
-base_route_app = "app"
+[client]
 
 [byllm.model]
 default_model = "gpt-4o-mini"
 
 [jacpack]
-name = "Wimbi"
-description = "Jac IDE snapshot for Wimbi"
+name = 'Wimbi'
+description = 'Jac IDE snapshot for Wimbi'
 
 [jachammer]
 project_id = "prj_85a886e1b7d54583889027010dc79337"
