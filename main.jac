@@ -1,6 +1,9 @@
 
 import from graph { DashboardState, AreaView, PersonView, ReportView, TrustView }
+import from walkers { run_rainfall, acknowledge, fast_forward, submit_report, get_state, confirm_visit, reset_demo, ussd }
 import "./public/styles.css";
+
+def:pub entry_state(tick: int) -> DashboardState { return seed_demo(); }
 
 def risk_level(risk: int) -> str { return "Critical" if risk >= 70 else "High" if risk >= 45 else "Watch" if risk >= 25 else "Safe"; }
 def risk_class(risk: int) -> str { return "critical" if risk >= 70 else "high" if risk >= 45 else "watch" if risk >= 25 else "safe"; }

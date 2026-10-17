@@ -116,4 +116,4 @@ def snapshot -> DashboardState {
     try { brief=resource_brief(red,visits,verified); } except Exception { brief="Stage shelter, medic and boat resources near the highest-risk corridor; arrange "+str(visits)+" welfare visit(s)."; }
     return DashboardState(rain=c.rain,minute=c.minute,areas=areas,people=people,reports=reports,trusts=trusts,resource_brief=brief,escalations=c.escalations,first_ack=c.first_ack,verified_at=c.verified_at,warnings_at=c.warnings_at);
 }
-def:pub get_state(tick: int) -> DashboardState { return snapshot(); }
+def:pub get_state(tick: int) -> DashboardState { seed_sample_data(); return snapshot(); }

@@ -81,7 +81,7 @@ def route_for(area: Area) -> str {
     roads = [area->:Connects:->[?:Road]];
     return roads[0].name if roads else "the high route";
 }
-def seeded -> bool { return bool([root-->[?:River]]); }
+def seeded -> bool { return len([root-->[?:Area]]) >= 8 and len([root-->[?:Person]]) >= 12 and bool([root-->[?:River]]); }
 def control -> Control {
     found = [root-->[?:Control]];
     if found { return found[0]; }

@@ -21,8 +21,8 @@ typescript = "^5.3.3"
 default_model = "gpt-4o-mini"
 
 [jacpack]
-name = 'Wimbi'
-description = 'Jac IDE snapshot for Wimbi'
+name = "Wimbi"
+description = "Jac IDE snapshot for Wimbi"
 
 [jachammer]
 project_id = "prj_85a886e1b7d54583889027010dc79337"
