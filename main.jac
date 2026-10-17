@@ -1,127 +1,36 @@
-import from walkers { get_state, run_rainfall, acknowledge, fast_forward, submit_report };
-import from graph { DashboardState, PersonView, AreaView };
 
-def risk_class(risk: int) -> str {
-    return "critical" if risk >= 70 else "high" if risk >= 45 else "watch";
-}
+import from graph { DashboardState, PersonView, AreaView }
+import from walkers { run_rainfall, acknowledge, fast_forward, submit_report, get_state, confirm_visit, reset_demo, ussd }
+import from react { useEffect }
+import "./public/styles.css";
 
-cl def:pub app -> JsxElement {
-    has state: DashboardState = DashboardState(), role: str = "Resident",
-        selected_name: str = "Wanjiku", report_text: str = "Water at the bridge is rising fast.",
-        report_area: str = "Mukuru", loading: bool = True, notice: str = "";
-
-    async can with entry {
-        state = await get_state();
-        loading = False;
-    }
-
-    async def rain_changed(event: ChangeEvent) {
-        loading = True;
-        state = await run_rainfall(int(event.target.value));
-        notice = "Rainfall propagation complete — alerts relayed through trust links.";
-        loading = False;
-    }
-
-    async def mark_safe {
-        state = await acknowledge(selected_name);
-        notice = selected_name + " is marked safe. The accountability clock has been updated.";
-    }
-
-    async def advance_time {
-        state = await fast_forward();
-        notice = "10 simulated minutes passed — silent vulnerable residents have been escalated.";
-    }
-
-    async def send_report {
-        if report_text.strip() {
-            state = await submit_report(selected_name, report_area, report_text);
-            notice = "Report checked against upstream water graph and nearby signals.";
-        }
-    }
-
-    <main className="wimbi-shell">
-        <link rel="stylesheet" href="/styles.css" />
-        <header className="topbar">
-            <div className="brand"><span className="brand-mark">≈</span><span>Wimbi</span><small>Flood intelligence for Nairobi</small></div>
-            <div className="sample-pill">● SAMPLE DATA</div>
-            <div className="time-pill">SIMULATION +{state.minute} MIN</div>
-        </header>
-        <section className="hero">
-            <div>
-                <p className="eyebrow">AGENTIC FLOOD WARNING</p>
-                <h1>Decide who needs to hear what — before the water arrives.</h1>
-                <p className="hero-copy">Wimbi follows water downstream, passes alerts through trusted people, and cross-checks what neighbours see.</p>
-            </div>
-            <div className="rain-control">
-                <div className="rain-label"><span>Rainfall intensity</span><strong>{state.rain} mm/hr</strong></div>
-                <input aria-label="Rainfall in millimetres per hour" type="range" min="0" max="25" value={str(state.rain)} onChange={rain_changed}/>
-                <div className="range-caption"><span>dry</span><span>cloudburst</span></div>
-            </div>
-        </section>
-        <nav className="role-tabs" aria-label="Choose dashboard role">
-            {for item in ["Resident", "Community Leader", "Responder Command", "Accountability"] {
-                <button className={"role-tab active" if role == item else "role-tab"} onClick={lambda { role = item; }}>{item}</button>
-            }}
-            <button className="fast-forward" onClick={lambda { advance_time(); }}>Fast-forward 10 min →</button>
-        </nav>
-        {<div className="notice">{notice}</div> if notice else <div></div>}
-        {<ResidentDashboard state={state} name={selected_name} onSafe={mark_safe} reportText={report_text} reportArea={report_area} onText={lambda (e: ChangeEvent) { report_text = e.target.value; }} onArea={lambda (e: ChangeEvent) { report_area = e.target.value; }} onReport={send_report}/> if role == "Resident" else <LeaderDashboard state={state} onRelay={lambda { advance_time(); }}/> if role == "Community Leader" else <CommandDashboard state={state}/> if role == "Responder Command" else <AccountabilityDashboard state={state}/>} 
-        <footer><span>WIMBI / Nairobi flood rehearsal</span><span>Graph-informed alerts • Offline-safe templates active</span></footer>
-    </main>
-}
-
-cl def ResidentDashboard(state: DashboardState, name: str, onSafe: any, reportText: str, reportArea: str, onText: any, onArea: any, onReport: any) -> JsxElement {
-    resident = next((p for p in state.people if p.name == name), PersonView());
-    area = next((a for a in state.areas if a.name == resident.area), AreaView());
-    <section className="resident-frame">
-        <div className="phone-head"><span>‹</span><strong>My flood briefing</strong><span>•••</span></div>
-        <div className={"warning-card " + risk_class(area.risk)}>
-            <p className="tiny-label">PERSONALISED FOR {resident.role.replace("_", " ")}</p>
-            <h2>{area.risk}% flood risk in {resident.area}</h2>
-            <p>{resident.warning if resident.warning else "Slide rainfall up to generate a trusted warning."}</p>
-            <div className="eta-row"><span>WATER ETA</span><strong>{area.eta} min</strong><span className="pulse">● live graph</span></div>
-        </div>
-        <div className="resident-grid">
-            <article className="panel route-panel"><p className="tiny-label">SAFE ROUTE</p><h3>↑ {area.roads if area.roads else "High route pending"}</h3><p>Avoid bridge approaches and low crossings. This route is updated from the water graph.</p></article>
-            <article className="panel checklist"><p className="tiny-label">MOVE FIRST</p><ul><li>Documents & medicine</li><li>Power leads above waist height</li><li>Go-bag and phone charge</li></ul></article>
-        </div>
-        <button className="safe-button" onClick={lambda { onSafe(); }}>{"✓ I'm safe"}</button>
-        <section className="report-box"><p className="tiny-label">NEIGHBOUR SIGNAL</p><h3>Report water here</h3><select value={reportArea} onChange={onArea}>{for a in state.areas { <option value={a.name}>{a.name}</option> }}</select><textarea value={reportText} onChange={onText} aria-label="Water report"></textarea><button className="secondary-button" onClick={lambda { onReport(); }}>Send for verification →</button></section>
-    </section>
-}
-
-cl def LeaderDashboard(state: DashboardState, onRelay: any) -> JsxElement {
-    vulnerable = [p for p in state.people if p.vulnerability >= 4];
-    <section className="dashboard-grid leader-grid">
-        <div className="section-heading"><p className="eyebrow">COMMUNITY LEADER</p><h2>Trust relay circle</h2><p>Alerts travel from ward office through relationships people already use.</p></div>
-        <article className="panel trust-graph"><div className="graph-core">Amina<br/><small>ward officer</small></div>{for t in state.trusts { <div className="trust-link"><span>{t.from_name}</span><i>→ {t.weight}/10 →</i><span>{t.to_name}</span></div> }}</article>
-        <article className="panel response-panel"><p className="tiny-label">ACKNOWLEDGEMENT STATUS</p>{for p in state.people { <div className="person-row"><span className={"status-dot green" if p.acknowledged else "status-dot red"}></span><strong>{p.name}</strong><small>{p.role.replace("_", " ")}</small><em>{"SAFE" if p.acknowledged else "SILENT"}</em></div> }}<button className="secondary-button" onClick={lambda { onRelay(); }}>Relay to next leader →</button></article>
-        <article className="panel vulnerable-panel"><p className="tiny-label">PRIORITY WELFARE CHECKS</p>{for p in vulnerable { <div className="visit-row"><span>⚑</span><div><strong>{p.name}</strong><p>{p.area} · vulnerability {p.vulnerability}/5</p></div><b>{p.relay if p.needs_visit else "monitor"}</b></div> }}</article>
-    </section>
-}
-
-cl def CommandDashboard(state: DashboardState) -> JsxElement {
-    confirmed = [r for r in state.reports if r.status == "confirmed"];
-    <section className="dashboard-grid command-grid">
-        <div className="section-heading"><p className="eyebrow">RESPONDER COMMAND</p><h2>One operational picture</h2><p>Risk, field signal, and stuck escalations in a single live briefing.</p></div>
-        <article className="panel risk-table"><div className="table-title"><h3>Live risk by area</h3><span>{state.rain} mm/hr rain</span></div><div className="table-head"><span>AREA / RIVER</span><span>RISK</span><span>ETA</span><span>ROAD</span></div>{for a in state.areas { <div className="table-row"><span><strong>{a.name}</strong><small>{a.river}</small></span><span className={"risk-number " + risk_class(a.risk)}>{a.risk}%</span><span>{a.eta} min</span><span>{a.roads}</span></div> }}</article>
-        <article className="panel reports-panel"><p className="tiny-label">FIELD REPORTS</p>{for r in state.reports { <div className="report-row"><span className={"report-status " + r.status}>{r.status}</span><div><strong>“{r.text}”</strong><p>{r.area} · {r.author}</p><small>{r.reasoning}</small></div></div> }}{<p className="empty">No reports yet. Submit one from Resident view.</p> if not state.reports else <div></div>}</article>
-        <article className="panel resource-panel"><p className="tiny-label">AGENT RESOURCE BRIEF</p><h3>Suggested deployment</h3><p>{state.resource_brief}</p><div className="resource-tags"><span>SHELTER</span><span>BOAT</span><span>MEDIC</span></div><p className="stuck">{state.escalations} silence escalation(s) currently need a human visit.</p></article>
-        <article className="panel confirmed-panel"><p className="tiny-label">VERIFICATION FEEDBACK</p><h2>{len(confirmed)} confirmed</h2><p>Confirmed reports increase local risk and shorten ETA so operational attention follows both model and lived observation.</p></article>
-    </section>
-}
-
-cl def AccountabilityDashboard(state: DashboardState) -> JsxElement {
-    reached = len([p for p in state.people if p.warning]); acked = len([p for p in state.people if p.acknowledged]); verified = len([r for r in state.reports if r.status == "confirmed"]);
-    reach = int(reached * 100 / len(state.people)) if state.people else 0;
-    <section className="accountability">
-        <div className="section-heading"><p className="eyebrow">ACCOUNTABILITY</p><h2>Did the warning reach people in time?</h2><p>A transparency view for county, funders, and media. Every number is derived from the same sample graph.</p></div>
-        <div className="metric-grid"><Metric label="Alert reach" value={str(reach) + "%"} note={str(reached) + " of " + str(len(state.people)) + " warned"}/><Metric label="First acknowledgement" value={str(state.first_ack if state.first_ack else "—") + " min"} note="from rainfall trigger"/><Metric label="Verified report" value={str(state.verified_at if state.verified_at else "—") + " min"} note="from report intake"/><Metric label="Silence escalations" value={str(state.escalations)} note="needs a human visit"/></div>
-        <article className="panel bars-panel"><p className="tiny-label">ALERT PATHWAY</p><div className="bar-row"><span>Warning reached</span><div><i style={{"width": str(reach) + "%"}}></i></div><b>{reach}%</b></div><div className="bar-row"><span>Acknowledged</span><div><i style={{"width": str(int(acked * 100 / len(state.people))) + "%"}}></i></div><b>{acked}/{len(state.people)}</b></div><div className="bar-row"><span>Verified reports</span><div><i style={{"width": str(min(100, verified * 50)) + "%"}}></i></div><b>{verified}</b></div></article>
-        <article className="panel method-panel"><p className="tiny-label">WHAT THIS MAKES VISIBLE</p><p>Wimbi does not treat delivery as success. It records whether a warning travelled through a trusted connection, was acknowledged, and caused a welfare visit when it did not.</p></article>
-    </section>
-}
-
-cl def Metric(label: str, value: str, note: str) -> JsxElement {
-    <article className="metric"><p>{label}</p><strong>{value}</strong><small>{note}</small></article>
+def risk_class(risk: int) -> str { return "critical" if risk>=70 else "high" if risk>=45 else "watch"; }
+def:pub app -> JsxElement {
+    has state: DashboardState=DashboardState(), tab: str="Responder", selected_name: str="Kip", report_text: str="Water rising at the bridge", report_area: str="Mukuru", notice: str="", loading: bool=True, sms_text: str="", sms_log: list[str]=[];
+    async can with entry { state=await get_state(0); loading=False; }
+    useEffect(lambda { interval=setInterval(lambda { refresh_state(); },5000); return lambda { clearInterval(interval); }; },[]);
+    async def refresh_state { state=await get_state(0); }
+    async def change_rain(e: ChangeEvent) { state=await run_rainfall(int(e.target.value)); notice="Rainfall and warning relay updated."; }
+    async def safe_now { state=await acknowledge(selected_name); notice=selected_name+" is marked safe."; }
+    async def advance { state=await fast_forward(0); notice="Ten simulated minutes passed."; }
+    async def reset { state=await reset_demo(0); notice="Demo state reset."; }
+    async def do_report { state=await submit_report(selected_name,report_area,report_text); notice="Report verified against local graph signals."; }
+    async def do_confirm(name: str) { state=await confirm_visit(name); notice="Visit confirmed for "+name+"."; }
+    async def relay_again { state=await run_rainfall(state.rain); notice="Warnings relayed through the trust graph."; }
+    async def send_sms { reply=await ussd(sms_text); sms_log=sms_log+["OUT  "+sms_text,"IN   "+reply]; sms_text=""; state=await get_state(0); }
+    async def quick_sms(command: str) { reply=await ussd(command); sms_log=sms_log+["OUT  "+command,"IN   "+reply]; state=await get_state(0); }
+    matching_people=[p for p in state.people if p.name==selected_name]; person=matching_people[0] if matching_people else PersonView(); matching_areas=[a for a in state.areas if a.name==person.area]; area=matching_areas[0] if matching_areas else AreaView(); warned=len([p for p in state.people if p.warning]); acked=len([p for p in state.people if p.acknowledged]); critical=len([a for a in state.areas if a.risk>=70]); visits=len([p for p in state.people if p.needs_visit]);
+    return <main className="wimbi-shell">
+        <header className="topbar"><div className="brand"><span className="ripple"><i></i><i></i><i></i></span><div><strong>Wimbi</strong><small>warnings that ripple through trust</small></div></div><nav className="tabs">{for item in ["Responder","Leader","Resident","Accountability","SMS/USSD"] { <button className={"tab active" if tab==item else "tab"} onClick={lambda { tab=item; }}>{item}</button> }}</nav><div className="top-actions"><span className="sample">SAMPLE DATA</span><span className="clock">T+{state.minute} min</span><button className="ghost" onClick={lambda { reset(); }}>Reset demo</button></div></header>
+        <div className="status-strip"><span>Rain <b>{state.rain} mm/hr</b></span><span><b>{critical}</b> areas critical</span><span><b>{warned}</b> warned</span><span><b>{acked}</b> acknowledged</span></div>
+        {notice and <div className="notice" role="status">{notice}</div>}
+        {if loading { <div className="empty">Loading shared graph state…</div> } else {
+            if tab=="Responder" { <section className="command-page"><div className="page-heading"><div><p className="eyebrow">OPERATIONS / LIVE GRAPH</p><h1>Responder command</h1><p>Follow water downstream, coordinate resources, and track field signals.</p></div><button className="primary" onClick={lambda { advance(); }}>Fast-forward 10 min</button></div><div className="command-grid"><div className="column"><article className="panel rain-panel"><div className="panel-title"><div><h2>Rainfall</h2><p>Simulation intensity, millimetres per hour</p></div><strong className="rain-value">{state.rain}<small> mm/hr</small></strong></div><input aria-label="Rainfall intensity" type="range" min="0" max="100" step="1" value={str(state.rain)} onChange={change_rain}/><div className="ticks"><span>0 Dry</span><span>30 Heavy</span><span>60 Severe</span><span>100 Extreme</span></div></article><article className="panel"><div className="panel-title"><div><h2>Risk by area</h2><p>Sorted by current graph-derived risk</p></div><span className="live-tag">LIVE STATE</span></div>{if state.rain<30 { <div className="all-clear">✓ &nbsp; No warnings issued. All areas are at baseline risk.</div> }}<div className="table-wrap"><div className="table-head"><span>Area / river</span><span>Risk</span><span>ETA</span><span>Roads</span></div>{for a in state.areas { <div className="table-row"><span><b>{a.name}</b><small>{a.river}</small></span><span className="risk-cell"><i className={"risk-bar "+risk_class(a.risk)} style={{"width":str(a.risk)+"%"}}></i><b>{a.risk}%</b><small>{a.trend}</small></span><span>{a.eta} min</span><span className="road-chip">{a.roads if a.roads else "open"}</span></div> }}</div></article></div><div className="column"><article className="panel resource"><div className="panel-title"><div><h2>Resource brief</h2><p>Operational recommendation</p></div></div><p className="brief">{state.resource_brief if state.resource_brief else "No warnings. Keep response teams on standby."}</p><div className="resource-icons"><span>⌂ Shelter</span><span>✚ Medic</span><span>▰ Boat</span></div></article><article className="panel"><h2>Escalations</h2>{if visits==0 { <p className="empty">No silent residents requiring a visit.</p> }}{for p in state.people { if p.needs_visit { <div className="escalation"><b>{p.name}</b><span>→ visit requested from {p.relay.replace("Visit requested: ","")}</span></div> } }}</article><article className="panel"><h2>Reports</h2>{if len(state.reports)==0 { <p className="empty">No field reports yet. Residents can report water observations.</p> }}{for r in state.reports { <div className="report-row"><span className={"report-status "+r.status}>{r.status}</span><div><b>{r.area} · {r.author}</b><p>{r.text}</p><small>{r.reasoning}</small></div></div> }}</article></div></div></section> }
+            elif tab=="Leader" { <section className="page"><div className="page-heading"><div><p className="eyebrow">TRUST NETWORK</p><h1>Community leader</h1><p>Trusted connections turn a broadcast into a personal check-in.</p></div><label>Viewing as <select value={selected_name} onChange={lambda (e: ChangeEvent) { selected_name=e.target.value; }}>{for p in state.people { if p.role=="chama_leader" or p.role=="ward_officer" { <option value={p.name}>{p.name} · {p.role.replace("_"," ")}</option> } }}</select></label></div>{visits>0 and <div className="urgent-banner">{visits} vulnerable people need a visit</div>}<div className="leader-layout"><article className="panel graph-panel"><h2>Trust graph</h2><p>Edge width reflects relationship trust weight.</p><div className="circle-node center-node">{selected_name}<small>community lead</small></div>{for t in state.trusts { if t.from_name==selected_name or t.to_name==selected_name { <div className="graph-edge"><span className="node-status pending"></span><b>{t.from_name}</b><i style={{"width":str(t.weight*8)+"px"}}></i><small>{t.weight}/10</small><b>{t.to_name}</b></div> } }}</article><article className="panel circle-list"><h2>My circle</h2>{for p in state.people { <div className="leader-person"><div className={"person-mark "+("visit" if p.needs_visit else "safe" if p.acknowledged else "pending")}>{p.name}</div><div className="person-info"><b>{p.name} <small>{p.role.replace("_"," ")}</small></b><small>{p.language} · {p.area} · vulnerability {p.vulnerability}/5</small><span className="state-label">{"Needs visit" if p.needs_visit else "Acknowledged" if p.acknowledged else "Pending"}</span>{p.warning and <p>{p.warning}</p>}</div>{p.needs_visit and <button className="small-primary" onClick={lambda { do_confirm(p.name); }}>Confirm visit</button>}</div> }}<button className="ghost" onClick={lambda { relay_again(); }}>Relay again</button></article></div></section> }
+            elif tab=="Resident" { <section className="resident-wrap"><div className="resident-frame"><div className="phone-notch"></div><label className="identity">I am: <select value={selected_name} onChange={lambda (e: ChangeEvent) { selected_name=e.target.value; }}>{for p in state.people { <option value={p.name}>{p.name} ({p.role.replace("_"," ")})</option> }}</select></label><div className={"resident-status "+risk_class(area.risk)}><span className="status-icon">{"!" if area.risk>=70 else "△" if area.risk>=45 else "✓"}</span><div><b>{"CRITICAL · water expected soon" if area.risk>=70 else "HIGH · prepare to move" if area.risk>=45 else "All clear"}</b><small>{area.risk>=45 and "Water expected in ~"+str(area.eta)+" min" or "No active flood warning for your area"}</small></div></div><article className="resident-warning"><span className="language-tag">{person.language}</span><h2>Your flood briefing</h2><p>{person.warning if person.warning else "No active warning. Check back when rainfall increases."}</p></article><article className="resident-card"><b>Avoid these roads</b><p className="avoid-chip">{area.roads if area.roads else "No closures"}</p><b>Safe route</b><p className="safe-route">{area.roads if area.roads else "Use the nearest high ground"}</p></article><article className="resident-card"><b>Move first</b><label><input type="checkbox"/> People, medicine and documents</label><label><input type="checkbox"/> Move belongings above waist height</label><label><input type="checkbox"/> Leave by the safe route; check in</label></article>{person.needs_visit and <div className="visit-note">Your neighbour will check on you: {person.relay.replace("Visit requested: ","")}</div>}<button className="primary safe-button" onClick={lambda { safe_now(); }}>{person.acknowledged and "You're marked safe" or "I'm safe"}</button><article className="resident-card report-box"><h2>Report water here</h2><label>Area<select value={report_area} onChange={lambda (e: ChangeEvent) { report_area=e.target.value; }}>{for a in state.areas { <option value={a.name}>{a.name}</option> }}</select></label><textarea value={report_text} onChange={lambda (e: ChangeEvent) { report_text=e.target.value; }} aria-label="Water observation"/><button className="secondary" onClick={lambda { do_report(); }}>Send report</button>{len(state.reports)>0 and <p className="verdict">Latest verdict: {state.reports[0].status} · {state.reports[0].reasoning}</p>}</article></div></section> }
+            elif tab=="Accountability" { reach=warned>0 and str(int(acked*100/warned))+"%" or "-"; first=state.first_ack>=0 and str(state.first_ack-state.warnings_at)+" min" or "-"; verified=state.verified_at>=0 and str(state.verified_at-state.warnings_at)+" min" or "-"; <section className="page"><div className="page-heading"><div><p className="eyebrow">OUTCOME MEASUREMENT</p><h1>Accountability</h1><p>Measure warning reach, response time, and verified community signals.</p></div></div><div className="metric-grid"><article className="metric"><small>REACH</small><strong>{reach}</strong><p>Acknowledged / warned</p><span>How measured: people with a warning who acknowledged.</span></article><article className="metric"><small>TIME TO FIRST ACK</small><strong>{first}</strong><p>Minutes from warning</p><span>How measured: first acknowledgement minus warnings_at.</span></article><article className="metric"><small>ESCALATIONS</small><strong>{state.escalations}</strong><p>Welfare visits requested</p><span>How measured: unique silent vulnerable people escalated.</span></article><article className="metric"><small>TIME TO VERIFIED</small><strong>{verified}</strong><p>Minutes from warning</p><span>How measured: verification minute minus warnings_at.</span></article></div><div className="leader-layout"><article className="panel"><h2>Acknowledgement by area</h2>{for a in state.areas { total=len([p for p in state.people if p.area==a.name]); done=len([p for p in state.people if p.area==a.name and p.acknowledged]); <div className="bar-row"><span>{a.name}</span><div><i style={{"width":str(total>0 and int(done*100/total) or 0)+"%"}}></i></div><b>{done}/{total}</b></div> }}</article><article className="panel"><h2>Acknowledgement by role</h2>{for role in ["boda_rider","tenant_ground_floor","elderly_resident","chama_leader","ward_officer","mama_mboga"] { total=len([p for p in state.people if p.role==role]); done=len([p for p in state.people if p.role==role and p.acknowledged]); <div className="bar-row"><span>{role.replace("_"," ")}</span><div><i style={{"width":str(total>0 and int(done*100/total) or 0)+"%"}}></i></div><b>{done}/{total}</b></div> }}</article></div><p className="footnote">Metrics update live from graph state.</p></section> }
+            else { <section className="sms-page"><div className="page-heading"><div><p className="eyebrow">LOW-BANDWIDTH CHANNEL</p><h1>SMS / USSD simulator</h1><p>Works on any phone, no data needed. Pilot design: delivery via SMS/USSD gateway.</p></div></div><div className="feature-phone"><div className="phone-speaker"></div><div className="phone-screen"><div className="screen-title">WIMBI SERVICE · {state.minute} MIN</div><div className="message-log">{if len(sms_log)==0 { <p>Welcome. Send a command:</p> }}{for line in sms_log { <p>{line}</p> }}</div><div className="sms-entry"><input aria-label="USSD command" placeholder="Type command" value={sms_text} onChange={lambda (e: ChangeEvent) { sms_text=e.target.value; }}/><button onClick={lambda { send_sms(); }}>Send</button></div></div><div className="keypad">{for key in ["1","2","3","4","5","6","7","8","9","*","0","#"] { <span>{key}</span> }}</div></div><div className="quick-commands"><button className="secondary" onClick={lambda { quick_sms("STATUS|Mukuru"); }}>STATUS|Mukuru</button><button className="secondary" onClick={lambda { quick_sms("ACK|Kip"); }}>ACK|Kip</button><button className="secondary" onClick={lambda { quick_sms("REPORT|Mukuru|water at bridge"); }}>REPORT|Mukuru|water at bridge</button></div></section> }
+        }}
+        <footer>All people, places and reports are fictional demonstration data.</footer>
+    </main>;
 }
