@@ -87,7 +87,8 @@ walker ReportVerifier {
         reports: list[str] = [];
 
     can begin with Root entry {
-        if self.target { visit self.target; }
+        target = self.target;
+        if target { visit target; }
     }
 
     can inspect_report with Report entry {

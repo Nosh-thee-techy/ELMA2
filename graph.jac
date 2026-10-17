@@ -64,13 +64,13 @@ def area_for(p: Person) -> Area | None {
     return found[0] if found else None;
 }
 
-def person_by_name(name: str) -> Person | None {
-    found = [root-->[?:Person, name==name]];
+def person_by_name(wanted: str) -> Person | None {
+    found = [root-->[?:Person, name==wanted]];
     return found[0] if found else None;
 }
 
-def area_by_name(name: str) -> Area | None {
-    found = [root-->[?:Area, name==name]];
+def area_by_name(wanted: str) -> Area | None {
+    found = [root-->[?:Area, name==wanted]];
     return found[0] if found else None;
 }
 
@@ -120,7 +120,9 @@ def seed_sample_data {
     westlands = Area(name="Westlands", river="Ngong River", order=4);
     bridge = DrainagePoint(name="Dandora bridge drain", condition="silted");
     roads = [Road(name="Outering Road"), Road(name="Mombasa Road"), Road(name="Ngong Road"), Road(name="Waiyaki Way")];
-    for n in [nairobi, ngong, korogocho, dondori, mukuru, industrial, kibera, langata, southc, westlands, bridge] { root ++> n; }
+    root ++> nairobi; root ++> ngong; root ++> korogocho; root ++> dondori;
+    root ++> mukuru; root ++> industrial; root ++> kibera; root ++> langata;
+    root ++> southc; root ++> westlands; root ++> bridge;
     for road in roads { root ++> road; }
     nairobi +>:Feeds():+> korogocho; ngong +>:Feeds():+> kibera;
     korogocho +>:FlowsTo():+> dondori; dondori +>:FlowsTo():+> mukuru; mukuru +>:FlowsTo():+> industrial;
