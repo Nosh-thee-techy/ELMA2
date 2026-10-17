@@ -1,4 +1,5 @@
 import from walkers { get_state, run_rainfall, acknowledge, fast_forward, submit_report };
+import from graph { DashboardState, PersonView, AreaView };
 
 def risk_class(risk: int) -> str {
     return "critical" if risk >= 70 else "high" if risk >= 45 else "watch";
@@ -84,7 +85,7 @@ cl def ResidentDashboard(state: DashboardState, name: str, onSafe: any, reportTe
             <article className="panel route-panel"><p className="tiny-label">SAFE ROUTE</p><h3>↑ {area.roads if area.roads else "High route pending"}</h3><p>Avoid bridge approaches and low crossings. This route is updated from the water graph.</p></article>
             <article className="panel checklist"><p className="tiny-label">MOVE FIRST</p><ul><li>Documents & medicine</li><li>Power leads above waist height</li><li>Go-bag and phone charge</li></ul></article>
         </div>
-        <button className="safe-button" onClick={lambda { onSafe(); }}>✓ I&apos;m safe</button>
+        <button className="safe-button" onClick={lambda { onSafe(); }}>{"✓ I'm safe"}</button>
         <section className="report-box"><p className="tiny-label">NEIGHBOUR SIGNAL</p><h3>Report water here</h3><select value={reportArea} onChange={onArea}>{for a in state.areas { <option value={a.name}>{a.name}</option> }}</select><textarea value={reportText} onChange={onText} aria-label="Water report"></textarea><button className="secondary-button" onClick={lambda { onReport(); }}>Send for verification →</button></section>
     </section>
 }

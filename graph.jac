@@ -15,6 +15,7 @@ edge Trusts: Person --> Person { has weight: int = 1; }
 edge LocatedIn: Person --> Area {}
 edge ReportedAt: Report --> Area {}
 edge Feeds: River --> Area {}
+edge Drains: DrainagePoint --> Area {}
 
 node Area {
     has name: str = "", river: str = "", order: int = 0,
@@ -75,21 +76,21 @@ def area_by_name(name: str) -> Area | None {
 
 def template_warning(p: Person, area: Area) -> str {
     if p.role == "boda_rider" {
-        return "{p.name}: Epuka {area.name} low crossings. Tumia {route_for(area)}; flood ETA {area.eta} min.";
+        return p.name + ": Epuka " + area.name + " low crossings. Tumia " + route_for(area) + "; flood ETA " + str(area.eta) + " min.";
     }
     if p.role == "tenant_ground_floor" {
-        return "{p.name}: Move documents, power leads and medicine above waist height now. Flood ETA {area.eta} min.";
+        return p.name + ": Move documents, power leads and medicine above waist height now. Flood ETA " + str(area.eta) + " min.";
     }
     if p.role == "elderly_resident" {
-        return "{p.name}: Stay with a neighbour; Amina has been assigned to check on you. Keep phone charged.";
+        return p.name + ": Stay with a neighbour; Amina has been assigned to check on you. Keep phone charged.";
     }
     if p.language == "Sheng" {
-        return "{p.name}, maji iko juu {area.name}. Usingoje—move sasa, then check in.";
+        return p.name + ", maji iko juu " + area.name + ". Usingoje—move sasa, then check in.";
     }
     if p.language == "Swahili" {
-        return "{p.name}, tahadhari ya mafuriko {area.name}. Chukua vitu muhimu juu na uthibitishe uko salama.";
+        return p.name + ", tahadhari ya mafuriko " + area.name + ". Chukua vitu muhimu juu na uthibitishe uko salama.";
     }
-    return "{p.name}: Flood risk is rising in {area.name}. Move early, avoid low crossings, and check in.";
+    return p.name + ": Flood risk is rising in " + area.name + ". Move early, avoid low crossings, and check in.";
 }
 
 def route_for(area: Area) -> str {
@@ -125,6 +126,7 @@ def seed_sample_data {
     korogocho +>:FlowsTo():+> dondori; dondori +>:FlowsTo():+> mukuru; mukuru +>:FlowsTo():+> industrial;
     kibera +>:FlowsTo():+> langata; langata +>:FlowsTo():+> southc; southc +>:FlowsTo():+> westlands;
     dondori +>:Connects():+> roads[0]; mukuru +>:Connects():+> roads[1]; langata +>:Connects():+> roads[2]; westlands +>:Connects():+> roads[3];
+    bridge +>:Drains():+> dondori;
     people = [
         Person(name="Amina", role="ward_officer", language="Swahili", vulnerability=1),
         Person(name="Otieno", role="chama_leader", language="English", vulnerability=1),

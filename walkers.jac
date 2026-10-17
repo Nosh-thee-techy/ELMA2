@@ -83,12 +83,11 @@ walker SilenceEscalator {
 
 # Walker 4: follows FlowTo edges upstream, combines local risk and reports, then feeds risk back.
 walker ReportVerifier {
-    has report_id: str = "", upstream_risk: int = 0, upstream_reports: int = 0,
+    has target: Report | None = None, upstream_risk: int = 0, upstream_reports: int = 0,
         reports: list[str] = [];
 
     can begin with Root entry {
-        found = [root-->[?:Report, jid==self.report_id]];
-        if found { visit found[0]; }
+        if self.target { visit self.target; }
     }
 
     can inspect_report with Report entry {
@@ -114,7 +113,7 @@ walker ReportVerifier {
             here.risk = min(100, here.risk + 5);
         } else { r.status = "unverified"; }
         try { r.reasoning = verification_reason(r.text, here.name, self.upstream_risk, self.upstream_reports); }
-        except Exception { r.reasoning = "{r.status.capitalize()}: {here.name} risk is {self.upstream_risk}% with {self.upstream_reports} upstream corroborating reports."; }
+        except Exception { r.reasoning = r.status + ": " + here.name + " risk is " + str(self.upstream_risk) + "% with " + str(self.upstream_reports) + " upstream corroborating reports."; }
         self.reports.append(r.status);
     }
 }
@@ -141,7 +140,7 @@ def:pub submit_report(author: str, area_name: str, text: str) -> DashboardState 
     seed_sample_data(); area = area_by_name(area_name);
     if area {
         r = Report(text=text, author=author, minute=control().minute); root ++> r; r +>:ReportedAt():+> area;
-        root spawn ReportVerifier(report_id=jid(r));
+        root spawn ReportVerifier(target=r);
     }
     return snapshot();
 }
@@ -172,7 +171,7 @@ def snapshot -> DashboardState {
     red = len([a for a in areas if a.risk >= 70]); visits = len([p for p in people if p.needs_visit]); verified = len([r for r in reports if r.status == "confirmed"]);
     brief = "";
     try { brief = resource_brief(red, visits, verified); }
-    except Exception { brief = "Stage {max(1, red)} shelter point(s), {visits} welfare visit(s), and one mobile medic near the highest-risk corridor."; }
+    except Exception { brief = "Stage " + str(max(1, red)) + " shelter point(s), " + str(visits) + " welfare visit(s), and one mobile medic near the highest-risk corridor."; }
     return DashboardState(rain=c.rain, minute=c.minute, areas=areas, people=people, reports=reports, trusts=trusts, resource_brief=brief, escalations=c.escalations, first_ack=c.first_ack, verified_at=c.verified_at);
 }
 
